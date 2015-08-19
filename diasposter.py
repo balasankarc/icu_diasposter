@@ -44,7 +44,7 @@ def getphotos(log):
     posts = tree.xpath(exp)
     credits = tree.xpath(exp1)
     for post in posts:
-        print post
+        print "\n", post
         pos = posts.index(post)
         fname = post[len(post) - post[::-1].index('/'):]
         text[fname] = credits[pos]
@@ -75,20 +75,22 @@ def postphotos(podurl, uname, pwd, text, log):
                 postid = stream._photoupload(filename=f)
                 txt = text[filename] + "\n#icu"
                 stream.post(photos=postid, text=txt)
-                os.system("echo %s >> icu_poster.log" % filename)  # TODO use file operations
+                os.system("echo %s >> ../icu_poster.log" % filename)  # TODO use file operations
             except Exception, e:
                 print e
                 continue
     os.chdir("../")  # Change back to original directory after work
 
 
-def clean(log):
+def clean():
+    logfile = open('icu_poster.log', 'r')
+    log = logfile.read()
+    logfile.close()
     filelist = os.listdir("./images")
+    print filelist
     for filename in filelist:
         if filename in log:
             os.remove("./images/%s" % filename)
-    if len(log) > 50:
-        os.system("tail -n 50 icu_poster.log > icu_poster.log")  # TODO Dirty log clearing
 
 
 if __name__ == "__main__":
@@ -101,7 +103,7 @@ if __name__ == "__main__":
     pod = args.pod
     uname = args.username
     pwd = args.password
-    logfile = open('icu_poster.log')
+    logfile = open('icu_poster.log', 'r')
     log = logfile.read()
     logfile.close()
     print "Downloading Photos"
@@ -109,4 +111,4 @@ if __name__ == "__main__":
     print "Uploading Photos"
     postphotos(pod, uname, pwd, text, log)
     print "Cleaning Photos"
-    clean(log)
+    clean()
