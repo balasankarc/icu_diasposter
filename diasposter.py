@@ -17,22 +17,17 @@
 
 import diaspy
 from lxml import etree
-from datetime import datetime
 import urllib2
 import wget
 import os
-import shutil
 import argparse
 
 
-def getphotos(date):
-    ''' Download photos from specified date '''
+def getphotos(log):
+    ''' Download photos'''
     text = {}
-    day = date.day
-    month = date.month
-    year = date.year
     try:
-        url = "http://chaluunion.com/day/%s/%s/%s" % (day, month, year)
+        url = "http://chaluunion.com/"
         print "Getting Page"
         page = urllib2.urlopen(url)
         print "Connection established. Reading page"
@@ -43,66 +38,62 @@ def getphotos(date):
     tree = etree.HTML(pagecontenthtml)
     exp = '//div[contains(@class,"post-type-photo")]/div[contains(@class,"post-content")]/a/img/@src'
     exp1 = '//div[contains(@class,"post-type-photo")]/div[contains(@class,"post-content")]/a/img/@alt'
-    folder_name = './%s_%s_%s' % (day, month, year)
+    folder_name = './images'
     if not os.path.isdir(folder_name):
         os.mkdir(folder_name)
     posts = tree.xpath(exp)
     credits = tree.xpath(exp1)
     for post in posts:
+        print post
         pos = posts.index(post)
         fname = post[len(post) - post[::-1].index('/'):]
         text[fname] = credits[pos]
-        if os.path.isfile(folder_name + "/uploaded/" + fname) or os.path.isfile(folder_name+"/"+fname):
+        if fname in log or fname in os.listdir(folder_name):
+            print "Already downloaded"
             continue
         else:
+            print "Downloading"
             wget.download(post, out=folder_name)
     return text
 
 
-def postphotos(date, podurl, uname, pwd, text):
+def postphotos(podurl, uname, pwd, text, log):
     '''Post photost to diaspora pod'''
-    day = date.day
-    month = date.month
-    year = date.year
-    folder_name = '%s_%s_%s' % (day, month, year)       # Categorize posts per day
+    folder_name = 'images'
+    imagefilelist = os.listdir(folder_name)
+    filelist = [x for x in imagefilelist if x not in log]  # Skip the files already in log
+    if len(filelist) == 0:
+        return
     c = diaspy.connection.Connection(pod=podurl, username=uname, password=pwd)
     c.login()
     stream = diaspy.streams.Stream(c)
-    if not os.path.isdir(os.path.join(folder_name, "uploaded")):
-        os.mkdir(os.path.join(folder_name, "uploaded"))
-    filelist = os.listdir(folder_name)
-    filelist.remove('uploaded')
-    print filelist
-    os.chdir("./" + folder_name)            # TODO: diaspy doesn't support relative paths, somehow.
+    os.chdir("./" + folder_name)  # TODO: diaspy doesn't support relative paths, somehow.
     for filename in filelist:
-        try:
-            f = "./" + filename
-            print f
-            postid = stream._photoupload(filename=f)
-            txt = text[filename] + "\n#icu"
-            stream.post(photos=postid, text=txt)
-            shutil.move(filename, 'uploaded/' + filename)   # Move uploaded posts so they won't be repeated
-        except UnicodeEncodeError, e:
-            print e
-            shutil.move(filename, 'uploaded/' + filename)
-        except Exception, e:
-            print e
-            continue
-    os.chdir("../")                         # Change back to original directory after work
+        if filename not in log:
+            try:
+                f = "./" + filename
+                postid = stream._photoupload(filename=f)
+                txt = text[filename] + "\n#icu"
+                stream.post(photos=postid, text=txt)
+                os.system("echo %s >> icu_poster.log" % filename)  # TODO use file operations
+            except Exception, e:
+                print e
+                continue
+    os.chdir("../")  # Change back to original directory after work
 
-    # def cleanphotos(date):
-    #   day = date.day
-    #   month = date.month
-    #   year = date.year
-    #   folder_name = '%s_%s_%s' % (day, month, year)
-    #   if os.path.isdir(os.path.join('./', folder_name, "uploaded")):
-    #       shutil.rmtree(os.path.join('./', folder_name, "uploaded"))
-    #   if len(os.listdir(folder_name)) == 0:
-    #       os.rmtree(folder_name)
+
+def clean(log):
+    filelist = os.listdir("./images")
+    for filename in filelist:
+        if filename in log:
+            os.remove("./images/%s" % filename)
+    if len(log) > 50:
+        os.system("tail -n 50 icu_poster.log > icu_poster.log")  # TODO Dirty log clearing
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Publish ICU posts to Diaspora')
+    parser = argparse.ArgumentParser(
+        description='Publish ICU posts to Diaspora')
     parser.add_argument("pod", help="Specify the pod")
     parser.add_argument("username", help="Specify the username")
     parser.add_argument("password", help="Specify the password")
@@ -110,9 +101,12 @@ if __name__ == "__main__":
     pod = args.pod
     uname = args.username
     pwd = args.password
-    print pod, uname, pwd
-    date = datetime.now()
+    logfile = open('icu_poster.log')
+    log = logfile.read()
+    logfile.close()
     print "Downloading Photos"
-    text = getphotos(date)
+    text = getphotos(log)
     print "Uploading Photos"
-    postphotos(date, pod, uname, pwd, text)
+    postphotos(pod, uname, pwd, text, log)
+    print "Cleaning Photos"
+    clean(log)
