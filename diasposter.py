@@ -28,13 +28,13 @@ def getphotos(log):
     text = {}
     try:
         url = "http://chaluunion.com/"
-        print "Getting Page"
+        # print "Getting Page"
         page = urllib2.urlopen(url)
-        print "Connection established. Reading page"
+        # print "Connection established. Reading page"
         pagecontenthtml = page.read()
     except Exception, e:
         pagecontenthtml = e.partial
-    print "Parsing"
+    # print "Parsing"
     tree = etree.HTML(pagecontenthtml)
     exp = '//div[contains(@class,"post-type-photo")]/div[contains(@class,"post-content")]/a/img/@src'
     exp1 = '//div[contains(@class,"post-type-photo")]/div[contains(@class,"post-content")]/a/img/@alt'
@@ -44,15 +44,15 @@ def getphotos(log):
     posts = tree.xpath(exp)
     credits = tree.xpath(exp1)
     for post in posts:
-        print "\n", post
+        # print "\n", post
         pos = posts.index(post)
         fname = post[len(post) - post[::-1].index('/'):]
         text[fname] = credits[pos]
         if fname in log or fname in os.listdir(folder_name):
-            print "Already downloaded"
+            # print "Already downloaded"
             continue
         else:
-            print "Downloading"
+            # print "Downloading"
             wget.download(post, out=folder_name)
     return text
 
@@ -87,7 +87,7 @@ def clean():
     log = logfile.read()
     logfile.close()
     filelist = os.listdir("./images")
-    print filelist
+    # print filelist
     for filename in filelist:
         if filename in log:
             os.remove("./images/%s" % filename)
@@ -106,9 +106,9 @@ if __name__ == "__main__":
     logfile = open('icu_poster.log', 'r')
     log = logfile.read()
     logfile.close()
-    print "Downloading Photos"
+    # print "Downloading Photos"
     text = getphotos(log)
-    print "Uploading Photos"
+    # print "Uploading Photos"
     postphotos(pod, uname, pwd, text, log)
-    print "Cleaning Photos"
+    # print "Cleaning Photos"
     clean()
