@@ -38,11 +38,14 @@ def getphotos(log):
     tree = etree.HTML(pagecontenthtml)
     exp = '//div[contains(@class,"post-type-photo")]/div[contains(@class,"post-content")]/a/img/@src'
     exp1 = '//div[contains(@class,"post-type-photo")]/div[contains(@class,"post-content")]/a/img/@alt'
+    # Stupid, inconsistent tumblr. Sometimes images are links, sometimes not.
+    exp2 = '//div[contains(@class,"post-type-photo")]/div[contains(@class,"post-content")]/img/@src'
+    exp3 = '//div[contains(@class,"post-type-photo")]/div[contains(@class,"post-content")]/img/@alt'
     folder_name = './images'
     if not os.path.isdir(folder_name):
         os.mkdir(folder_name)
-    posts = tree.xpath(exp)
-    credits = tree.xpath(exp1)
+    posts = tree.xpath(exp) + tree.xpath(exp2)
+    credits = tree.xpath(exp1) + tree.xpath(exp3)
     for post in posts:
         # print "\n", post
         pos = posts.index(post)
